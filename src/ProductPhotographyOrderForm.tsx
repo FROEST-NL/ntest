@@ -22,14 +22,14 @@ interface FormData {
   cameraPositions: CameraPosition[];
   currentProductIndex: number;
   uploadedPhotos: { [key: number]: File[] };
-  usePhotoUpload: boolean;
+  usePhotoUpload: boolean | undefined;
   productDescriptions: string[];
   productNames: string[];
   extraServices: {
     [key: number]: {
       transparentBackground: boolean;
       customBackgroundColor: boolean;
-      customBackgroundColorValue: string;
+      customBackgroundColorValues: string[];
     }
   };
 }
@@ -46,14 +46,14 @@ const initialFormData: FormData = {
   cameraPositions: [],
   currentProductIndex: 0,
   uploadedPhotos: {},
-  usePhotoUpload: false,
+  usePhotoUpload: undefined,
   productDescriptions: [''],
   productNames: [''],
   extraServices: {
     0: {
       transparentBackground: false,
       customBackgroundColor: false,
-      customBackgroundColorValue: '#FFFFFF'
+      customBackgroundColorValues: Array(5).fill('#FFFFFF')
     }
   }
 };
@@ -63,6 +63,7 @@ function ProductPhotographyOrderForm() {
   const { state: formData, setState: setFormData } = useFormHistory<FormData>(initialFormData);
   const fileInputRefs = useRef<(HTMLInputElement | null)[]>([]);
   const [validationErrors, setValidationErrors] = useState<{[key: string]: string}>({});
+  const [show3DViewer, setShow3DViewer] = useState(false);
 
   const handleInputChange = (name: string, value: string) => {
     // Update form data
@@ -119,17 +120,34 @@ function ProductPhotographyOrderForm() {
     setCurrentStep(prev => prev - 1);
   };
 
-  const handleExtraServiceChange = (productIndex: number, service: 'transparentBackground' | 'customBackgroundColor' | 'customBackgroundColorValue', value: boolean | string) => {
-    setFormData({
-      ...formData,
-      extraServices: {
-        ...formData.extraServices,
-        [productIndex]: {
-          ...formData.extraServices[productIndex],
-          [service]: value
-        }
-      }
-    });
+  const handleExtraServiceChange = (productIndex: number, service: 'transparentBackground' | 'customBackgroundColor' | 'customBackgroundColorValues', value: boolean | string | string[]) => {
+    const updatedFormData = { ...formData };
+    
+    // Initialize this product's services if they don't exist
+    if (!updatedFormData.extraServices[productIndex]) {
+      updatedFormData.extraServices[productIndex] = {
+        transparentBackground: false,
+        customBackgroundColor: false,
+        customBackgroundColorValues: new Array(formData.photosPerProduct).fill('#FFFFFF')
+      };
+    }
+
+    // If we're enabling the custom background color, ensure the colors array is initialized
+    if (service === 'customBackgroundColor' && value === true) {
+      updatedFormData.extraServices[productIndex] = {
+        ...updatedFormData.extraServices[productIndex],
+        customBackgroundColor: true,
+        customBackgroundColorValues: new Array(formData.photosPerProduct).fill('#FFFFFF')
+      };
+    } else {
+      // For other changes, just update the specific value
+      updatedFormData.extraServices[productIndex] = {
+        ...updatedFormData.extraServices[productIndex],
+        [service]: value
+      };
+    }
+
+    setFormData(updatedFormData);
   };
 
   const calculateTotalPrice = () => {
@@ -367,8 +385,20 @@ function ProductPhotographyOrderForm() {
           )}
 
           {/* Step 2: Product Information */}
-          {currentStep === 2 && (
-            <div className="space-y-6">
+                     {currentStep === 2 && (
+                       <div className="space-y-6">
+                         {/* YouTube Video Section */}
+                         <div className="max-w-4xl mx-auto mb-8">
+                           <div className="relative pb-[56.25%] h-0 rounded-2xl overflow-hidden">
+                             <iframe
+                               className="absolute top-0 left-0 w-full h-full"
+                               src="https://www.youtube.com/embed/dQw4w9WgXcQ"
+                               title="Product Information Video"
+                               allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                               allowFullScreen
+                             ></iframe>
+                           </div>
+                         </div>
               <div className="bg-black/40 backdrop-blur-lg rounded-2xl p-8 border border-white/10">
                 <h2 className="text-2xl font-bold text-white mb-6">Product informatie</h2>
                 
@@ -521,8 +551,20 @@ function ProductPhotographyOrderForm() {
           )}
 
           {/* Step 3: Photo Upload or Camera Positions */}
-          {currentStep === 3 && (
-            <div className="space-y-6">
+                     {currentStep === 3 && (
+                       <div className="space-y-6">
+                         {/* YouTube Video Section */}
+                         <div className="max-w-4xl mx-auto mb-8">
+                           <div className="relative pb-[56.25%] h-0 rounded-2xl overflow-hidden">
+                             <iframe
+                               className="absolute top-0 left-0 w-full h-full"
+                               src="https://www.youtube.com/embed/dQw4w9WgXcQ"
+                               title="Camera Positions Guide"
+                               allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                               allowFullScreen
+                             ></iframe>
+                           </div>
+                         </div>
               <div className="bg-black/40 backdrop-blur-lg rounded-2xl p-8 border border-white/10">
                 <h2 className="text-2xl font-bold text-white mb-2">Bepaal de camera posities</h2>
                 <p className="text-gray-400 mb-6">
@@ -561,10 +603,16 @@ function ProductPhotographyOrderForm() {
                   </div>
 
                   <div className="flex space-x-4">
-                    <button
-                      onClick={() => setFormData({ ...formData, usePhotoUpload: false })}
+                      <button
+                        onClick={() => {
+                          setFormData({
+                            ...formData,
+                            usePhotoUpload: false
+                          });
+                          setShow3DViewer(true);
+                        }}
                       className={`flex-1 p-6 rounded-lg border ${
-                        !formData.usePhotoUpload
+                        formData.usePhotoUpload === false
                           ? 'border-blue-500 bg-blue-500/20'
                           : 'border-white/10 bg-black/50 hover:bg-black/70'
                       } transition-colors`}
@@ -574,9 +622,15 @@ function ProductPhotographyOrderForm() {
                       <p className="text-sm text-gray-400">Klik op het model om camera posities vast te leggen</p>
                     </button>
                     <button
-                      onClick={() => setFormData({ ...formData, usePhotoUpload: true })}
+                      onClick={() => {
+                        setFormData({
+                          ...formData,
+                          usePhotoUpload: true
+                        });
+                        setShow3DViewer(false);
+                      }}
                       className={`flex-1 p-6 rounded-lg border ${
-                        formData.usePhotoUpload
+                        formData.usePhotoUpload === true
                           ? 'border-blue-500 bg-blue-500/20'
                           : 'border-white/10 bg-black/50 hover:bg-black/70'
                       } transition-colors`}
@@ -647,40 +701,44 @@ function ProductPhotographyOrderForm() {
                         </div>
                       ))}
                     </div>
-                  ) : (
-                    <ProductViewer
-                      onPositionLock={(position) => {
-                        setFormData({
-                          ...formData,
-                          cameraPositions: [...formData.cameraPositions, position]
-                        });
-                      }}
-                      maxPositions={formData.photosPerProduct}
-                      currentProduct={formData.currentProductIndex + 1}
-                      totalProducts={formData.numberOfProducts}
-                      onProductComplete={() => {
-                        setFormData({
-                          ...formData,
-                          currentProductIndex: formData.currentProductIndex + 1,
-                          cameraPositions: []
-                        });
-                      }}
-                      onProductChange={(index) => {
-                        setFormData({
-                          ...formData,
-                          currentProductIndex: index,
-                          cameraPositions: []
-                        });
-                      }}
-                      lockedPositions={formData.cameraPositions}
-                      onPositionRemove={(index) => {
-                        setFormData({
-                          ...formData,
-                          cameraPositions: formData.cameraPositions.filter((_, i) => i !== index)
-                        });
-                      }}
-                      productName={formData.productNames[formData.currentProductIndex]}
-                    />
+                  ) : show3DViewer && (
+                    <div className="space-y-6">
+                      <div className="p-6 bg-black/50 rounded-xl border border-white/10">
+                        <ProductViewer
+                          onPositionLock={(position) => {
+                            setFormData({
+                              ...formData,
+                              cameraPositions: [...formData.cameraPositions, position]
+                            });
+                          }}
+                          maxPositions={formData.photosPerProduct}
+                          currentProduct={formData.currentProductIndex + 1}
+                          totalProducts={formData.numberOfProducts}
+                          onProductComplete={() => {
+                            setFormData({
+                              ...formData,
+                              currentProductIndex: formData.currentProductIndex + 1,
+                              cameraPositions: []
+                            });
+                          }}
+                          onProductChange={(index) => {
+                            setFormData({
+                              ...formData,
+                              currentProductIndex: index,
+                              cameraPositions: []
+                            });
+                          }}
+                          lockedPositions={formData.cameraPositions}
+                          onPositionRemove={(index) => {
+                            setFormData({
+                              ...formData,
+                              cameraPositions: formData.cameraPositions.filter((_, i) => i !== index)
+                            });
+                          }}
+                          productName={formData.productNames[formData.currentProductIndex]}
+                        />
+                      </div>
+                    </div>
                   )}
                 </div>
               </div>
@@ -705,6 +763,18 @@ function ProductPhotographyOrderForm() {
           {/* Step 4: Extra Services */}
           {currentStep === 4 && (
             <div className="space-y-6">
+              {/* YouTube Video Section */}
+              <div className="max-w-4xl mx-auto mb-8">
+                <div className="relative pb-[56.25%] h-0 rounded-2xl overflow-hidden">
+                  <iframe
+                    className="absolute top-0 left-0 w-full h-full"
+                    src="https://www.youtube.com/embed/dQw4w9WgXcQ"
+                    title="Extra Services Guide"
+                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                    allowFullScreen
+                  ></iframe>
+                </div>
+              </div>
               <div className="bg-black/40 backdrop-blur-lg rounded-2xl p-8 border border-white/10">
                 <h2 className="text-2xl font-bold text-white mb-6">Extra services per product</h2>
                 
@@ -713,7 +783,7 @@ function ProductPhotographyOrderForm() {
                     const services = formData.extraServices[productIndex] || {
                       transparentBackground: false,
                       customBackgroundColor: false,
-                      customBackgroundColorValue: '#FFFFFF'
+                      customBackgroundColorValues: new Array(formData.photosPerProduct).fill('#FFFFFF')
                     };
 
                     return (
@@ -755,7 +825,18 @@ function ProductPhotographyOrderForm() {
                                   type="checkbox"
                                   id={`background-${productIndex}`}
                                   checked={services.customBackgroundColor}
-                                  onChange={(e) => handleExtraServiceChange(productIndex, 'customBackgroundColor', e.target.checked)}
+                                  onChange={(e) => {
+                                    // Initialize color array when checkbox is checked
+                                    const value = e.target.checked;
+                                    handleExtraServiceChange(productIndex, 'customBackgroundColor', value);
+                                    if (value) {
+                                      handleExtraServiceChange(
+                                        productIndex,
+                                        'customBackgroundColorValues',
+                                        Array(formData.photosPerProduct).fill('#FFFFFF')
+                                      );
+                                    }
+                                  }}
                                   className="w-4 h-4 rounded border-white/10 bg-black/50 text-blue-500 focus:ring-blue-500"
                                 />
                                 <label htmlFor={`background-${productIndex}`} className="text-lg font-medium text-white">
@@ -763,23 +844,75 @@ function ProductPhotographyOrderForm() {
                                 </label>
                               </div>
                               <p className="mt-2 text-gray-400">
-                                Kies een specifieke achtergrondkleur die past bij je merk.
+                                Kies voor elke foto een eigen achtergrondkleur.
                               </p>
                               {services.customBackgroundColor && (
-                                <div className="mt-3 flex items-center space-x-3">
-                                  <input
-                                    type="color"
-                                    value={services.customBackgroundColorValue}
-                                    onChange={(e) => handleExtraServiceChange(productIndex, 'customBackgroundColorValue', e.target.value)}
-                                    className="w-8 h-8 rounded border-0 bg-transparent"
-                                  />
-                                  <input
-                                    type="text"
-                                    value={services.customBackgroundColorValue}
-                                    onChange={(e) => handleExtraServiceChange(productIndex, 'customBackgroundColorValue', e.target.value)}
-                                    className="w-24 rounded bg-black/50 border border-white/10 text-white px-2 py-1 text-sm"
-                                    placeholder="#FFFFFF"
-                                  />
+                                <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                                  <p className="col-span-full mb-2">
+                                    <div className="bg-blue-500/10 p-4 rounded-lg">
+                                      <div className="flex items-center justify-between mb-3">
+                                        <span className="text-blue-400 font-bold text-lg">
+                                          {formData.photosPerProduct} {formData.photosPerProduct === 1 ? 'foto' : "foto's"}
+                                        </span>
+                                        <span className="bg-blue-500/20 text-blue-300 px-3 py-1 rounded-full text-sm">
+                                          Stap 2 ✓
+                                        </span>
+                                      </div>
+                                      <div className="flex flex-col gap-2">
+                                        <span className="text-white font-medium">
+                                          Kies voor elke foto een eigen achtergrondkleur
+                                        </span>
+                                        <span className="text-gray-400 text-sm">
+                                          Selecteer hieronder per foto de gewenste achtergrondkleur
+                                        </span>
+                                      </div>
+                                    </div>
+                                  </p>
+                                  {Array.from({ length: formData.photosPerProduct }).map((_, photoIndex) => (
+                                    <div key={photoIndex} className="bg-black/30 p-4 rounded-lg border border-white/5 hover:border-blue-500/20 transition-all group">
+                                      <div className="flex items-center justify-between mb-3">
+                                        <div className="flex items-center gap-2">
+                                          <div className="w-2 h-2 bg-blue-400 rounded-full"></div>
+                                          <label className="text-sm font-medium text-white group-hover:text-blue-400 transition-colors">
+                                            Foto {photoIndex + 1} van {formData.photosPerProduct}
+                                          </label>
+                                        </div>
+                                        <span className="text-xs text-gray-400 opacity-0 group-hover:opacity-100 transition-opacity">
+                                          Kies hieronder een kleur
+                                        </span>
+                                      </div>
+                                      <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
+                                        <div className="flex-1 flex items-center gap-3">
+                                          <div className="relative group/color">
+                                            <input
+                                              type="color"
+                                              value={services.customBackgroundColorValues[photoIndex] || '#FFFFFF'}
+                                              onChange={(e) => {
+                                                const newColors = [...(services.customBackgroundColorValues || Array(formData.photosPerProduct).fill('#FFFFFF'))];
+                                                newColors[photoIndex] = e.target.value;
+                                                handleExtraServiceChange(productIndex, 'customBackgroundColorValues', newColors);
+                                              }}
+                                              className="w-10 h-10 rounded-lg border-2 border-white/10 bg-transparent cursor-pointer group-hover/color:border-blue-500/50 transition-colors"
+                                            />
+                                            <div className="absolute -top-8 left-1/2 -translate-x-1/2 bg-black/90 text-white text-xs px-2 py-1 rounded opacity-0 group-hover/color:opacity-100 transition-opacity pointer-events-none">
+                                              Kies een kleur
+                                            </div>
+                                          </div>
+                                          <input
+                                            type="text"
+                                            value={services.customBackgroundColorValues[photoIndex] || '#FFFFFF'}
+                                            onChange={(e) => {
+                                              const newColors = [...(services.customBackgroundColorValues || Array(formData.photosPerProduct).fill('#FFFFFF'))];
+                                              newColors[photoIndex] = e.target.value;
+                                              handleExtraServiceChange(productIndex, 'customBackgroundColorValues', newColors);
+                                            }}
+                                            className="flex-1 sm:flex-none w-full sm:w-32 rounded bg-black/50 border border-white/10 hover:border-blue-500/20 focus:border-blue-500 text-white px-3 py-2 text-sm transition-colors"
+                                            placeholder="#FFFFFF"
+                                          />
+                                        </div>
+                                      </div>
+                                    </div>
+                                  ))}
                                 </div>
                               )}
                               <p className="mt-2 text-blue-400 font-medium">
@@ -822,9 +955,19 @@ function ProductPhotographyOrderForm() {
                               </div>
                             )}
                             {services.customBackgroundColor && (
-                              <div className="flex justify-between pl-4">
-                                <span>Aangepaste achtergrondkleur ({formData.photosPerProduct} foto's)</span>
-                                <span>+ €{(3 * formData.photosPerProduct).toFixed(2)}</span>
+                              <div className="space-y-2">
+                                <div className="flex justify-between pl-4">
+                                  <span>Aangepaste achtergrondkleuren ({formData.photosPerProduct} foto's)</span>
+                                  <span>+ €{(3 * formData.photosPerProduct).toFixed(2)}</span>
+                                </div>
+                                <div className="pl-8 grid grid-cols-2 gap-2">
+                                  {services.customBackgroundColorValues.map((color, colorIndex) => (
+                                    <div key={colorIndex} className="flex items-center space-x-2 text-sm text-gray-400">
+                                      <div className="w-3 h-3 rounded" style={{ backgroundColor: color }} />
+                                      <span>Foto {colorIndex + 1}: {color}</span>
+                                    </div>
+                                  ))}
+                                </div>
                               </div>
                             )}
                           </div>
@@ -905,7 +1048,17 @@ function ProductPhotographyOrderForm() {
                                 <span className="block">• Transparante achtergrond</span>
                               )}
                               {formData.extraServices[index]?.customBackgroundColor && (
-                                <span className="block">• Aangepaste achtergrondkleur: {formData.extraServices[index].customBackgroundColorValue}</span>
+                                <div>
+                                  <span className="block mb-2">• Aangepaste achtergrondkleuren:</span>
+                                  <div className="ml-4 grid grid-cols-2 gap-2">
+                                    {(formData.extraServices[index].customBackgroundColorValues || []).map((color, colorIndex) => (
+                                      <div key={colorIndex} className="flex items-center gap-2">
+                                        <div className="w-3 h-3 rounded border border-white/10" style={{ backgroundColor: color }} />
+                                        <span className="text-sm">Foto {colorIndex + 1}: {color}</span>
+                                      </div>
+                                    ))}
+                                  </div>
+                                </div>
                               )}
                             </div>
                           </div>
